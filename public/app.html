@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="app-page">
+  <div class="app-container">
+    <header class="app-header">
+      <h1>📋 Todo</h1>
+      <button id="btn-logout" class="btn-logout">Đăng xuất</button>
+    </header>
+
+    <form id="add-form" class="add-form">
+      <input
+        type="text"
+        id="new-title"
+        placeholder="Thêm việc cần làm..."
+        required
+        autocomplete="off"
+      />
+      <input type="date" id="new-due" />
+      <button type="submit" class="btn-primary">Thêm</button>
+    </form>
+
+    <ul id="todo-list" class="todo-list"></ul>
+
+    <p id="empty-state" class="empty-state hidden">Chưa có việc gì. Thêm task đầu tiên nào!</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

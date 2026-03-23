@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App — Đăng nhập</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="login-page">
+  <div class="login-box">
+    <h1>📋 Todo App</h1>
+    <form id="login-form">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+      </div>
+      <p id="login-error" class="error-msg hidden"></p>
+      <button type="submit" class="btn-primary">Đăng nhập</button>
+    </form>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    fetch('/api/me').then(r => r.json()).then(data => {
+      if (data.loggedIn) window.location.href = '/app.html';
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const errEl = document.getElementById('login-error');
+
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (res.ok) {
+        window.location.href = '/app.html';
+      } else {
+        const data = await res.json();
+        errEl.textContent = data.error;
+        errEl.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
