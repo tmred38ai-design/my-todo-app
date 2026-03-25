@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "Todo App",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file=.env", "server.js"],
       "port": 3000,
       "autoPort": true
     }

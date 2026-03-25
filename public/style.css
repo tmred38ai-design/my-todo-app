@@ -44,7 +44,8 @@ body {
 
 input[type="text"],
 input[type="password"],
-input[type="date"] {
+input[type="date"],
+input[type="datetime-local"] {
   padding: 10px 12px;
   border: 1.5px solid #ddd;
   border-radius: 8px;
@@ -255,6 +256,14 @@ input:focus {
 }
 .btn-delete:hover { background: #fecaca; }
 
+/* ── Todo body clickable ── */
+.todo-body {
+  cursor: pointer;
+}
+.todo-body:hover .todo-title {
+  color: #4f46e5;
+}
+
 /* ── Empty state ── */
 .empty-state {
   text-align: center;
@@ -262,3 +271,286 @@ input:focus {
   margin-top: 48px;
   font-size: 0.95rem;
 }
+
+/* ── Detail overlay & panel ── */
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detail-panel {
+  background: #fff;
+  width: min(480px, 100vw);
+  height: 100vh;
+  overflow-y: auto;
+  box-shadow: -4px 0 32px rgba(0,0,0,0.14);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+body.panel-open { overflow: hidden; }
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1.5px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.detail-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 4px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.detail-close:hover { background: #f3f4f6; color: #374151; }
+
+.detail-title-input {
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: none;
+  outline: none;
+  padding: 4px 0;
+  color: #1a1a2e;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+.detail-title-input:focus { border-bottom-color: #4f46e5; }
+
+.detail-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+}
+
+.detail-input {
+  padding: 9px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fafafa;
+  color: #1a1a2e;
+  transition: border-color 0.2s;
+}
+.detail-input:focus { outline: none; border-color: #4f46e5; background: #fff; }
+
+.reminder-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.reminder-row .detail-input { flex: 1; min-width: 160px; }
+
+.detail-select {
+  padding: 9px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fafafa;
+  color: #1a1a2e;
+  cursor: pointer;
+}
+.detail-select:focus { outline: none; border-color: #4f46e5; }
+
+.detail-textarea {
+  padding: 10px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  min-height: 100px;
+  resize: vertical;
+  font-family: inherit;
+  background: #fafafa;
+  color: #1a1a2e;
+  transition: border-color 0.2s;
+}
+.detail-textarea:focus { outline: none; border-color: #4f46e5; background: #fff; }
+
+/* ── Subtasks ── */
+.subtask-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #f0f0f0;
+}
+
+.subtask-item.completed .subtask-title {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.subtask-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #4f46e5;
+}
+
+.subtask-title {
+  flex: 1;
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+
+.subtask-edit-input {
+  flex: 1;
+  font-size: 0.88rem;
+  padding: 2px 6px;
+  border: 1.5px solid #4f46e5;
+  border-radius: 4px;
+  outline: none;
+}
+
+.subtask-edit-btn, .subtask-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.subtask-edit-btn:hover   { background: #ede9fe; color: #4f46e5; }
+.subtask-delete-btn:hover { background: #fee2e2; color: #dc2626; }
+
+.subtask-add-form {
+  display: flex;
+  gap: 8px;
+}
+.subtask-add-form .detail-input { flex: 1; }
+
+.btn-add-subtask {
+  padding: 8px 14px;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-add-subtask:hover { background: #4338ca; }
+
+/* ── Attachments ── */
+.upload-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1.5px dashed #d1d5db;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  align-self: flex-start;
+}
+.upload-btn:hover { border-color: #4f46e5; color: #4f46e5; background: #f5f3ff; }
+
+.attachment-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.att-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.att-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+.att-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #4f46e5;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.att-name:hover { text-decoration: underline; }
+
+.att-size {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.att-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.att-delete:hover { background: #fee2e2; color: #dc2626; }

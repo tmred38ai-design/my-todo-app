@@ -14,20 +14,71 @@
     </header>
 
     <form id="add-form" class="add-form">
-      <input
-        type="text"
-        id="new-title"
-        placeholder="Thêm việc cần làm..."
-        required
-        autocomplete="off"
-      />
+      <input type="text" id="new-title" placeholder="Thêm việc cần làm..." required autocomplete="off" />
       <input type="date" id="new-due" />
       <button type="submit" class="btn-primary">Thêm</button>
     </form>
 
     <ul id="todo-list" class="todo-list"></ul>
-
     <p id="empty-state" class="empty-state hidden">Chưa có việc gì. Thêm task đầu tiên nào!</p>
+  </div>
+
+  <!-- ── Detail panel ── -->
+  <div id="detail-overlay" class="detail-overlay hidden">
+    <div id="detail-panel" class="detail-panel">
+      <div class="detail-header">
+        <button id="detail-close" class="detail-close" title="Đóng">✕</button>
+        <input type="text" id="detail-title" class="detail-title-input" placeholder="Tiêu đề task..." />
+      </div>
+
+      <div class="detail-body">
+        <!-- Deadline -->
+        <div class="detail-section">
+          <label class="section-label">Deadline</label>
+          <input type="date" id="detail-due" class="detail-input" />
+        </div>
+
+        <!-- Reminder -->
+        <div class="detail-section">
+          <label class="section-label">Nhắc nhở</label>
+          <div class="reminder-row">
+            <input type="datetime-local" id="detail-reminder" class="detail-input" />
+            <select id="detail-repeat" class="detail-select">
+              <option value="none">Không lặp</option>
+              <option value="daily">Hằng ngày</option>
+              <option value="weekly">Hằng tuần</option>
+              <option value="monthly">Hằng tháng</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Sub-tasks -->
+        <div class="detail-section">
+          <label class="section-label">Sub-tasks</label>
+          <ul id="subtask-list" class="subtask-list"></ul>
+          <form id="subtask-form" class="subtask-add-form">
+            <input type="text" id="new-subtask" class="detail-input" placeholder="Thêm sub-task..." autocomplete="off" />
+            <button type="submit" class="btn-add-subtask">+</button>
+          </form>
+        </div>
+
+        <!-- Notes -->
+        <div class="detail-section">
+          <label class="section-label">Ghi chú</label>
+          <textarea id="detail-notes" class="detail-textarea" placeholder="Thêm ghi chú..."></textarea>
+        </div>
+
+        <!-- Attachments -->
+        <div class="detail-section">
+          <label class="section-label">Đính kèm</label>
+          <label class="upload-btn">
+            <input type="file" id="attachment-input" multiple style="display:none" />
+            + Đính kèm file
+          </label>
+          <ul id="attachment-list" class="attachment-list"></ul>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
