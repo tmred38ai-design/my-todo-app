@@ -1,27 +1,60 @@
 let todos = [];
 let dragSrcId = null;
+let currentTodoId = null;
+let saveTimeout = null;
 
+// ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   const me = await fetch('/api/me').then(r => r.json());
   if (!me.loggedIn) { window.location.href = '/'; return; }
+
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
   await loadTodos();
+  setupDetailEvents();
 }
 
 async function loadTodos() {
   todos = await fetch('/api/todos').then(r => r.json());
   render();
+  scheduleReminders(todos);
 }
 
+// ── Reminders ─────────────────────────────────────────────────────────────────
+function scheduleReminders(todoList) {
+  todoList.forEach(todo => {
+    if (!todo.reminderAt || todo.completed) return;
+    const delay = new Date(todo.reminderAt).getTime() - Date.now();
+    if (delay > 0 && delay < 8 * 60 * 60 * 1000) {
+      setTimeout(() => {
+        if (Notification.permission === 'granted') {
+          new Notification(`⏰ ${todo.title}`, {
+            body: todo.dueDate ? `Deadline: ${formatDate(todo.dueDate)}` : 'Bạn có việc cần làm!'
+          });
+        }
+      }, delay);
+    }
+  });
+}
+
+// ── Render list ───────────────────────────────────────────────────────────────
 function isOverdue(todo) {
   if (!todo.dueDate || todo.completed) return false;
-  const today = new Date().toISOString().split('T')[0];
-  return todo.dueDate < today;
+  return todo.dueDate < new Date().toISOString().split('T')[0];
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function render() {
@@ -34,8 +67,8 @@ function render() {
     return;
   }
   empty.classList.add('hidden');
-
   list.innerHTML = '';
+
   todos.forEach(todo => {
     const li = document.createElement('li');
     li.className = 'todo-item' +
@@ -46,18 +79,29 @@ function render() {
 
     li.innerHTML = `
       <span class="drag-handle" title="Kéo để sắp xếp">⠿</span>
-      <div class="todo-body">
+      <div class="todo-body" title="Xem chi tiết">
         <span class="todo-title">${escapeHtml(todo.title)}</span>
-        ${todo.dueDate ? `<span class="todo-due ${isOverdue(todo) ? 'overdue-label' : ''}">${isOverdue(todo) ? '⚠ ' : ''}${formatDate(todo.dueDate)}</span>` : ''}
+        ${todo.dueDate
+          ? `<span class="todo-due ${isOverdue(todo) ? 'overdue-label' : ''}">${isOverdue(todo) ? '⚠ ' : '📅 '}${formatDate(todo.dueDate)}</span>`
+          : ''}
       </div>
       <div class="todo-actions">
         ${!todo.completed
-          ? `<button class="btn-done" onclick="completeTodo('${todo.id}')" title="Đánh dấu xong">✓ Done</button>`
-          : `<button class="btn-undo" onclick="undoTodo('${todo.id}')" title="Hoàn tác">↩ Undo</button>`
-        }
-        <button class="btn-delete" onclick="deleteTodo('${todo.id}')" title="Xóa">✕</button>
+          ? `<button class="btn-done" title="Đánh dấu xong">✓</button>`
+          : `<button class="btn-undo" title="Hoàn tác">↩</button>`}
+        <button class="btn-delete" title="Xóa">✕</button>
       </div>
     `;
+
+    li.querySelector('.todo-body').addEventListener('click', () => openDetail(todo.id));
+    li.querySelector(todo.completed ? '.btn-undo' : '.btn-done').addEventListener('click', (e) => {
+      e.stopPropagation();
+      todo.completed ? undoTodo(todo.id) : completeTodo(todo.id);
+    });
+    li.querySelector('.btn-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteTodo(todo.id);
+    });
 
     li.addEventListener('dragstart', onDragStart);
     li.addEventListener('dragover', onDragOver);
@@ -68,11 +112,7 @@ function render() {
   });
 }
 
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Drag & drop
+// ── Drag & drop ───────────────────────────────────────────────────────────────
 function onDragStart(e) {
   dragSrcId = this.dataset.id;
   this.classList.add('dragging');
@@ -90,20 +130,16 @@ function onDrop(e) {
   e.preventDefault();
   const targetId = this.dataset.id;
   if (dragSrcId === targetId) return;
-
   const srcIdx = todos.findIndex(t => t.id === dragSrcId);
   const tgtIdx = todos.findIndex(t => t.id === targetId);
   const [moved] = todos.splice(srcIdx, 1);
   todos.splice(tgtIdx, 0, moved);
-
   render();
   saveOrder();
 }
 
 function onDragEnd() {
-  document.querySelectorAll('.todo-item').forEach(el => {
-    el.classList.remove('dragging', 'drag-over');
-  });
+  document.querySelectorAll('.todo-item').forEach(el => el.classList.remove('dragging', 'drag-over'));
 }
 
 async function saveOrder() {
@@ -114,7 +150,7 @@ async function saveOrder() {
   });
 }
 
-// Actions
+// ── List actions ──────────────────────────────────────────────────────────────
 async function completeTodo(id) {
   await fetch(`/api/todos/${id}`, {
     method: 'PUT',
@@ -122,6 +158,7 @@ async function completeTodo(id) {
     body: JSON.stringify({ completed: true })
   });
   await loadTodos();
+  if (currentTodoId === id) closeDetail();
 }
 
 async function undoTodo(id) {
@@ -134,29 +171,252 @@ async function undoTodo(id) {
 }
 
 async function deleteTodo(id) {
+  if (!confirm('Xóa task này?')) return;
   await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+  if (currentTodoId === id) closeDetail();
   await loadTodos();
 }
 
-// Add form
+// ── Detail panel ──────────────────────────────────────────────────────────────
+async function openDetail(id) {
+  currentTodoId = id;
+  const todo = await fetch(`/api/todos/${id}`).then(r => r.json());
+
+  document.getElementById('detail-title').value = todo.title;
+  document.getElementById('detail-due').value = todo.dueDate || '';
+  document.getElementById('detail-notes').value = todo.notes || '';
+  document.getElementById('detail-repeat').value = todo.reminderRepeat || 'none';
+
+  if (todo.reminderAt) {
+    // Convert UTC ISO to local datetime-local string
+    const dt = new Date(todo.reminderAt);
+    const pad = n => String(n).padStart(2, '0');
+    const local = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    document.getElementById('detail-reminder').value = local;
+  } else {
+    document.getElementById('detail-reminder').value = '';
+  }
+
+  renderSubtasks(todo.subtasks || []);
+  renderAttachments(todo.attachments || []);
+
+  document.getElementById('detail-overlay').classList.remove('hidden');
+  document.body.classList.add('panel-open');
+}
+
+function closeDetail() {
+  clearTimeout(saveTimeout);
+  currentTodoId = null;
+  document.getElementById('detail-overlay').classList.add('hidden');
+  document.body.classList.remove('panel-open');
+}
+
+function setupDetailEvents() {
+  document.getElementById('detail-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('detail-overlay')) closeDetail();
+  });
+  document.getElementById('detail-close').addEventListener('click', closeDetail);
+
+  document.getElementById('detail-title').addEventListener('input', triggerAutoSave);
+  document.getElementById('detail-notes').addEventListener('input', triggerAutoSave);
+  document.getElementById('detail-due').addEventListener('change', saveDetail);
+  document.getElementById('detail-reminder').addEventListener('change', saveDetail);
+  document.getElementById('detail-repeat').addEventListener('change', saveDetail);
+
+  document.getElementById('subtask-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('new-subtask');
+    const title = input.value.trim();
+    if (!title || !currentTodoId) return;
+    await fetch(`/api/todos/${currentTodoId}/subtasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title })
+    });
+    input.value = '';
+    await refreshSubtasks();
+  });
+
+  document.getElementById('attachment-input').addEventListener('change', async (e) => {
+    if (!currentTodoId) return;
+    const files = Array.from(e.target.files);
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append('file', file);
+      await fetch(`/api/todos/${currentTodoId}/attachments`, { method: 'POST', body: fd });
+    }
+    e.target.value = '';
+    await refreshAttachments();
+  });
+}
+
+function triggerAutoSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveDetail, 600);
+}
+
+async function saveDetail() {
+  if (!currentTodoId) return;
+  const reminderVal = document.getElementById('detail-reminder').value;
+  await fetch(`/api/todos/${currentTodoId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: document.getElementById('detail-title').value.trim() || undefined,
+      dueDate: document.getElementById('detail-due').value || null,
+      notes: document.getElementById('detail-notes').value,
+      reminderAt: reminderVal ? new Date(reminderVal).toISOString() : null,
+      reminderRepeat: document.getElementById('detail-repeat').value
+    })
+  });
+  // Sync title/dueDate back to the list
+  const idx = todos.findIndex(t => t.id === currentTodoId);
+  if (idx !== -1) {
+    const newTitle = document.getElementById('detail-title').value.trim();
+    if (newTitle) todos[idx].title = newTitle;
+    todos[idx].dueDate = document.getElementById('detail-due').value || null;
+    render();
+  }
+}
+
+// ── Subtasks ──────────────────────────────────────────────────────────────────
+async function refreshSubtasks() {
+  const todo = await fetch(`/api/todos/${currentTodoId}`).then(r => r.json());
+  renderSubtasks(todo.subtasks || []);
+}
+
+function renderSubtasks(subtasks) {
+  const list = document.getElementById('subtask-list');
+  list.innerHTML = '';
+
+  subtasks.forEach(st => {
+    const li = document.createElement('li');
+    li.className = 'subtask-item' + (st.completed ? ' completed' : '');
+
+    li.innerHTML = `
+      <input type="checkbox" class="subtask-check" ${st.completed ? 'checked' : ''} />
+      <span class="subtask-title">${escapeHtml(st.title)}</span>
+      <input type="text" class="subtask-edit-input hidden" value="${escapeHtml(st.title)}" />
+      <button class="subtask-edit-btn" title="Sửa">✏</button>
+      <button class="subtask-delete-btn" title="Xóa">✕</button>
+    `;
+
+    const check = li.querySelector('.subtask-check');
+    const titleSpan = li.querySelector('.subtask-title');
+    const editInput = li.querySelector('.subtask-edit-input');
+    const editBtn = li.querySelector('.subtask-edit-btn');
+    const deleteBtn = li.querySelector('.subtask-delete-btn');
+    let isEditing = false;
+
+    check.addEventListener('change', async () => {
+      await fetch(`/api/todos/${currentTodoId}/subtasks/${st.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: check.checked })
+      });
+      await refreshSubtasks();
+    });
+
+    editBtn.addEventListener('click', async () => {
+      if (!isEditing) {
+        isEditing = true;
+        titleSpan.classList.add('hidden');
+        editInput.classList.remove('hidden');
+        editInput.focus();
+        editBtn.textContent = '✓';
+      } else {
+        const newTitle = editInput.value.trim();
+        if (newTitle) await saveSubtaskTitle(st.id, newTitle);
+        else await refreshSubtasks();
+      }
+    });
+
+    editInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const newTitle = editInput.value.trim();
+        if (newTitle) await saveSubtaskTitle(st.id, newTitle);
+      }
+      if (e.key === 'Escape') {
+        isEditing = false;
+        editInput.value = st.title;
+        titleSpan.classList.remove('hidden');
+        editInput.classList.add('hidden');
+        editBtn.textContent = '✏';
+      }
+    });
+
+    deleteBtn.addEventListener('click', async () => {
+      await fetch(`/api/todos/${currentTodoId}/subtasks/${st.id}`, { method: 'DELETE' });
+      await refreshSubtasks();
+    });
+
+    list.appendChild(li);
+  });
+}
+
+async function saveSubtaskTitle(sid, title) {
+  await fetch(`/api/todos/${currentTodoId}/subtasks/${sid}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title })
+  });
+  await refreshSubtasks();
+}
+
+// ── Attachments ───────────────────────────────────────────────────────────────
+async function refreshAttachments() {
+  const todo = await fetch(`/api/todos/${currentTodoId}`).then(r => r.json());
+  renderAttachments(todo.attachments || []);
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderAttachments(attachments) {
+  const list = document.getElementById('attachment-list');
+  list.innerHTML = '';
+
+  attachments.forEach(att => {
+    const li = document.createElement('li');
+    li.className = 'attachment-item';
+    const isImage = att.mimeType && att.mimeType.startsWith('image/');
+    li.innerHTML = `
+      ${isImage
+        ? `<img src="${att.url}" alt="${escapeHtml(att.filename)}" class="att-thumb" />`
+        : `<span class="att-icon">📎</span>`}
+      <a href="${att.url}" target="_blank" class="att-name" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</a>
+      <span class="att-size">${formatBytes(att.sizeBytes)}</span>
+      <button class="att-delete" title="Xóa">✕</button>
+    `;
+    li.querySelector('.att-delete').addEventListener('click', async () => {
+      await fetch(`/api/todos/${currentTodoId}/attachments/${att.id}`, { method: 'DELETE' });
+      await refreshAttachments();
+    });
+    list.appendChild(li);
+  });
+}
+
+// ── Add form ──────────────────────────────────────────────────────────────────
 document.getElementById('add-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = document.getElementById('new-title').value.trim();
   const dueDate = document.getElementById('new-due').value;
   if (!title) return;
-
   await fetch('/api/todos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, dueDate: dueDate || null })
   });
-
   document.getElementById('new-title').value = '';
   document.getElementById('new-due').value = '';
   await loadTodos();
 });
 
-// Logout
+// ── Logout ────────────────────────────────────────────────────────────────────
 document.getElementById('btn-logout').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });
   window.location.href = '/';
