@@ -227,6 +227,7 @@ function closeDetail() {
   currentTodoId = null;
   document.getElementById('detail-overlay').classList.add('hidden');
   document.body.classList.remove('panel-open');
+  loadTodos();
 }
 
 function setupDetailEvents() {
