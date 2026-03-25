@@ -3,6 +3,18 @@ let dragSrcId = null;
 let currentTodoId = null;
 let saveTimeout = null;
 
+// ── Background slider ─────────────────────────────────────────────────────────
+function startBgSlider() {
+  const slides = document.querySelectorAll('.bg-slide');
+  if (!slides.length) return;
+  let current = 0;
+  setInterval(() => {
+    slides[current].classList.remove('active');
+    current = (current + 1) % slides.length;
+    slides[current].classList.add('active');
+  }, 10000);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   const me = await fetch('/api/me').then(r => r.json());
@@ -12,6 +24,7 @@ async function init() {
     Notification.requestPermission();
   }
 
+  startBgSlider();
   await loadTodos();
   setupDetailEvents();
 }
@@ -80,7 +93,12 @@ function render() {
     li.innerHTML = `
       <span class="drag-handle" title="Kéo để sắp xếp">⠿</span>
       <div class="todo-body" title="Xem chi tiết">
-        <span class="todo-title">${escapeHtml(todo.title)}</span>
+        <div class="todo-title-row">
+          <span class="todo-title">${escapeHtml(todo.title)}</span>
+          ${todo.subtasksTotal > 0
+            ? `<span class="subtask-badge ${todo.subtasksDone === todo.subtasksTotal ? 'all-done' : ''}">${todo.subtasksDone}/${todo.subtasksTotal}</span>`
+            : ''}
+        </div>
         ${todo.dueDate
           ? `<span class="todo-due ${isOverdue(todo) ? 'overdue-label' : ''}">${isOverdue(todo) ? '⚠ ' : '📅 '}${formatDate(todo.dueDate)}</span>`
           : ''}

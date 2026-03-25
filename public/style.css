@@ -2,10 +2,28 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #f0f2f5;
+  background: #1a1a2e;
   color: #1a1a2e;
   min-height: 100vh;
 }
+
+/* ── Background slider ── */
+#bg-slider {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+.bg-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out;
+}
+
+.bg-slide.active { opacity: 1; }
 
 /* ── Login ── */
 .login-page {
@@ -15,12 +33,13 @@ body {
 }
 
 .login-box {
-  background: #fff;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
   border-radius: 12px;
   padding: 40px 36px;
   width: 100%;
   max-width: 380px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
 }
 
 .login-box h1 {
@@ -92,6 +111,9 @@ input:focus {
   max-width: 640px;
   margin: 0 auto;
   padding: 32px 16px 64px;
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(14px);
+  min-height: 100vh;
 }
 
 .app-header {
@@ -201,10 +223,33 @@ input:focus {
   gap: 2px;
 }
 
+.todo-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .todo-title {
   font-size: 0.95rem;
   font-weight: 500;
   word-break: break-word;
+}
+
+.subtask-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #ede9fe;
+  color: #5b21b6;
+  border-radius: 20px;
+  padding: 1px 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.subtask-badge.all-done {
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .completed .todo-title {

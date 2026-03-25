@@ -21,6 +21,7 @@ const upload = multer({
 
 // ── Transforms ────────────────────────────────────────────────────────────────
 function toTodo(row) {
+  const subtasks = row.subtasks || [];
   return {
     id: row.id,
     title: row.title,
@@ -29,7 +30,9 @@ function toTodo(row) {
     order: row.order_index,
     notes: row.notes || '',
     reminderAt: row.reminder_at || null,
-    reminderRepeat: row.reminder_repeat || 'none'
+    reminderRepeat: row.reminder_repeat || 'none',
+    subtasksTotal: subtasks.length,
+    subtasksDone: subtasks.filter(s => s.completed).length
   };
 }
 
@@ -98,7 +101,7 @@ app.get('/api/me', (req, res) => {
 app.get('/api/todos', requireAuth, async (req, res) => {
   const { data, error } = await supabase
     .from('todos')
-    .select('*')
+    .select('*, subtasks(id, completed)')
     .order('order_index', { ascending: true });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data.map(toTodo));
