@@ -1,4 +1,6 @@
 let todos = [];
+let folders = [];
+let currentFolderId = null;
 let dragSrcId = null;
 let currentTodoId = null;
 let saveTimeout = null;
@@ -63,14 +65,148 @@ async function init() {
   applyTheme();
   document.getElementById('btn-theme').addEventListener('click', cycleTheme);
   startBgSlider();
+  await loadFolders();
   await loadTodos();
   setupDetailEvents();
+
+  // Add folder button
+  document.getElementById('btn-add-folder').addEventListener('click', async () => {
+    const name = prompt('Tên folder mới:');
+    if (!name || !name.trim()) return;
+    await fetch('/api/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() })
+    });
+    await loadFolders();
+  });
+}
+
+async function loadFolders() {
+  const result = await fetch('/api/folders').then(r => r.json());
+  folders = Array.isArray(result) ? result : [];
+  renderSidebar();
 }
 
 async function loadTodos() {
-  todos = await fetch('/api/todos').then(r => r.json());
+  const url = currentFolderId ? `/api/todos?folderId=${currentFolderId}` : '/api/todos';
+  todos = await fetch(url).then(r => r.json());
   render();
   scheduleReminders(todos);
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('folder-list');
+  list.innerHTML = '';
+
+  // "All" entry
+  const allLi = document.createElement('li');
+  allLi.className = 'folder-item' + (currentFolderId === null ? ' active' : '');
+  allLi.innerHTML = `<span class="folder-icon">📋</span><span class="folder-name">Tất cả</span>`;
+  allLi.addEventListener('click', () => selectFolder(null, 'Tất cả'));
+  list.appendChild(allLi);
+
+  // Folder entries
+  folders.forEach(folder => {
+    const li = document.createElement('li');
+    li.className = 'folder-item' + (currentFolderId === folder.id ? ' active' : '');
+    li.dataset.id = folder.id;
+    li.innerHTML = `
+      <span class="folder-icon">📁</span>
+      <span class="folder-name">${escapeHtml(folder.name)}</span>
+      <input class="folder-rename-input hidden" value="${escapeHtml(folder.name)}" />
+      <div class="folder-actions">
+        <button class="folder-edit-btn" title="Đổi tên">✏</button>
+        <button class="folder-delete-btn" title="Xóa">✕</button>
+      </div>
+    `;
+
+    li.querySelector('.folder-name').addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectFolder(folder.id, folder.name);
+    });
+    li.querySelector('.folder-icon').addEventListener('click', () => selectFolder(folder.id, folder.name));
+
+    // Rename
+    const nameEl = li.querySelector('.folder-name');
+    const input = li.querySelector('.folder-rename-input');
+    const editBtn = li.querySelector('.folder-edit-btn');
+    let editing = false;
+
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!editing) {
+        editing = true;
+        nameEl.classList.add('hidden');
+        input.classList.remove('hidden');
+        input.focus();
+        input.select();
+        editBtn.textContent = '✓';
+      } else {
+        saveRename(folder.id, input, nameEl, editBtn);
+        editing = false;
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { saveRename(folder.id, input, nameEl, editBtn); editing = false; }
+      if (e.key === 'Escape') {
+        input.value = folder.name;
+        nameEl.classList.remove('hidden');
+        input.classList.add('hidden');
+        editBtn.textContent = '✏';
+        editing = false;
+      }
+    });
+
+    // Delete
+    li.querySelector('.folder-delete-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Xóa folder "${folder.name}"? Các tasks bên trong sẽ không bị xóa.`)) return;
+      await fetch(`/api/folders/${folder.id}`, { method: 'DELETE' });
+      if (currentFolderId === folder.id) selectFolder(null, 'Tất cả');
+      await loadFolders();
+    });
+
+    list.appendChild(li);
+  });
+}
+
+async function saveRename(id, input, nameEl, editBtn) {
+  const newName = input.value.trim();
+  if (!newName) return;
+  const res = await fetch(`/api/folders/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: newName })
+  });
+  const updated = await res.json();
+  // Update title if this folder is selected
+  if (currentFolderId === id) {
+    document.getElementById('current-folder-title').textContent = '📁 ' + updated.name;
+  }
+  nameEl.textContent = updated.name;
+  nameEl.classList.remove('hidden');
+  input.classList.add('hidden');
+  editBtn.textContent = '✏';
+  await loadFolders();
+}
+
+function selectFolder(folderId, folderName) {
+  currentFolderId = folderId;
+  const titleEl = document.getElementById('current-folder-title');
+  titleEl.textContent = folderId ? '📁 ' + folderName : '📋 Todo';
+
+  renderSidebar();
+
+  // Slide-in animation
+  const main = document.getElementById('main-content');
+  main.classList.remove('slide-in');
+  void main.offsetWidth; // force reflow
+  main.classList.add('slide-in');
+
+  loadTodos();
 }
 
 // ── Reminders ─────────────────────────────────────────────────────────────────
@@ -490,7 +626,7 @@ document.getElementById('add-form').addEventListener('submit', async (e) => {
   await fetch('/api/todos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, dueDate: dueDate || null })
+    body: JSON.stringify({ title, dueDate: dueDate || null, folderId: currentFolderId })
   });
   document.getElementById('new-title').value = '';
   document.getElementById('new-due').value = '';

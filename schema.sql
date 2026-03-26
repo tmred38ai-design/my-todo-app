@@ -43,6 +43,19 @@ create table if not exists attachments (
 alter table attachments disable row level security;
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- MIGRATION: folders
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists folders (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  order_index integer not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table folders disable row level security;
+
+alter table todos add column if not exists folder_id uuid references folders(id) on delete set null;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- STORAGE BUCKET: create manually in Supabase Dashboard
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. Go to Storage tab in Supabase Dashboard

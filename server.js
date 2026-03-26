@@ -28,12 +28,17 @@ function toTodo(row) {
     dueDate: row.due_date,
     completed: row.completed,
     order: row.order_index,
+    folderId: row.folder_id || null,
     notes: row.notes || '',
     reminderAt: row.reminder_at || null,
     reminderRepeat: row.reminder_repeat || 'none',
     subtasksTotal: subtasks.length,
     subtasksDone: subtasks.filter(s => s.completed).length
   };
+}
+
+function toFolder(row) {
+  return { id: row.id, name: row.name, order: row.order_index };
 }
 
 function toSubtask(row) {
@@ -97,12 +102,42 @@ app.get('/api/me', (req, res) => {
   res.json({ loggedIn: !!req.session.loggedIn });
 });
 
+// ── Folders ───────────────────────────────────────────────────────────────────
+app.get('/api/folders', requireAuth, async (req, res) => {
+  const { data, error } = await supabase.from('folders').select('*').order('order_index');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data.map(toFolder));
+});
+
+app.post('/api/folders', requireAuth, async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Tên không được trống' });
+  const { data: existing } = await supabase.from('folders').select('order_index').order('order_index', { ascending: false }).limit(1);
+  const nextOrder = existing && existing.length > 0 ? existing[0].order_index + 1 : 0;
+  const { data, error } = await supabase.from('folders').insert({ name: name.trim(), order_index: nextOrder }).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(toFolder(data));
+});
+
+app.put('/api/folders/:id', requireAuth, async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Tên không được trống' });
+  const { data, error } = await supabase.from('folders').update({ name: name.trim() }).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(toFolder(data));
+});
+
+app.delete('/api/folders/:id', requireAuth, async (req, res) => {
+  await supabase.from('todos').update({ folder_id: null }).eq('folder_id', req.params.id);
+  await supabase.from('folders').delete().eq('id', req.params.id);
+  res.json({ success: true });
+});
+
 // ── Todos list ────────────────────────────────────────────────────────────────
 app.get('/api/todos', requireAuth, async (req, res) => {
-  const { data, error } = await supabase
-    .from('todos')
-    .select('*, subtasks(id, completed)')
-    .order('order_index', { ascending: true });
+  let query = supabase.from('todos').select('*, subtasks(id, completed)').order('order_index', { ascending: true });
+  if (req.query.folderId) query = query.eq('folder_id', req.query.folderId);
+  const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   res.json(data.map(toTodo));
 });
@@ -133,7 +168,7 @@ app.post('/api/todos', requireAuth, async (req, res) => {
   const nextOrder = existing && existing.length > 0 ? existing[0].order_index + 1 : 0;
   const { data, error } = await supabase
     .from('todos')
-    .insert({ title: title.trim(), due_date: dueDate || null, completed: false, order_index: nextOrder })
+    .insert({ title: title.trim(), due_date: dueDate || null, folder_id: req.body.folderId || null, completed: false, order_index: nextOrder })
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(toTodo(data));
