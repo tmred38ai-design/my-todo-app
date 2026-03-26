@@ -13,10 +13,14 @@
     <div class="bg-slide" style="background-image:url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80')"></div>
     <div class="bg-slide" style="background-image:url('https://images.unsplash.com/photo-1510166089176-3780f01e2c7a?auto=format&fit=crop&w=1920&q=80')"></div>
   </div>
+
   <div class="app-container">
     <header class="app-header">
       <h1>📋 Todo</h1>
-      <button id="btn-logout" class="btn-logout">Đăng xuất</button>
+      <div class="header-actions">
+        <button id="btn-theme" class="btn-theme" title="Đổi theme">🎨</button>
+        <button id="btn-logout" class="btn-logout">Đăng xuất</button>
+      </div>
     </header>
 
     <form id="add-form" class="add-form">
@@ -27,6 +31,15 @@
 
     <ul id="todo-list" class="todo-list"></ul>
     <p id="empty-state" class="empty-state hidden">Chưa có việc gì. Thêm task đầu tiên nào!</p>
+
+    <!-- Done section -->
+    <section id="done-section" class="done-section hidden">
+      <div class="done-header">
+        <span class="done-label">✓ Đã hoàn thành</span>
+        <span id="done-count" class="done-count-badge">0</span>
+      </div>
+      <ul id="done-list" class="todo-list"></ul>
+    </section>
   </div>
 
   <!-- ── Detail panel ── -->
@@ -38,13 +51,11 @@
       </div>
 
       <div class="detail-body">
-        <!-- Deadline -->
         <div class="detail-section">
           <label class="section-label">Deadline</label>
           <input type="date" id="detail-due" class="detail-input" />
         </div>
 
-        <!-- Reminder -->
         <div class="detail-section">
           <label class="section-label">Nhắc nhở</label>
           <div class="reminder-row">
@@ -58,7 +69,6 @@
           </div>
         </div>
 
-        <!-- Sub-tasks -->
         <div class="detail-section">
           <label class="section-label">Sub-tasks</label>
           <ul id="subtask-list" class="subtask-list"></ul>
@@ -68,13 +78,11 @@
           </form>
         </div>
 
-        <!-- Notes -->
         <div class="detail-section">
           <label class="section-label">Ghi chú</label>
           <textarea id="detail-notes" class="detail-textarea" placeholder="Thêm ghi chú..."></textarea>
         </div>
 
-        <!-- Attachments -->
         <div class="detail-section">
           <label class="section-label">Đính kèm</label>
           <label class="upload-btn">

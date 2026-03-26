@@ -3,6 +3,42 @@ let dragSrcId = null;
 let currentTodoId = null;
 let saveTimeout = null;
 
+// ── Sound ─────────────────────────────────────────────────────────────────────
+function playTing() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1108, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.7);
+  } catch (e) {}
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const THEMES = ['semi', 'clear', 'frosted'];
+let themeIdx = parseInt(localStorage.getItem('todoTheme') || '0');
+
+function applyTheme() {
+  THEMES.forEach(t => document.body.classList.remove('theme-' + t));
+  document.body.classList.add('theme-' + THEMES[themeIdx]);
+  const labels = { semi: 'Semi', clear: 'Clear', frosted: 'Frosted' };
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.title = 'Theme: ' + labels[THEMES[themeIdx]];
+}
+
+function cycleTheme() {
+  themeIdx = (themeIdx + 1) % THEMES.length;
+  localStorage.setItem('todoTheme', themeIdx);
+  applyTheme();
+}
+
 // ── Background slider ─────────────────────────────────────────────────────────
 function startBgSlider() {
   const slides = document.querySelectorAll('.bg-slide');
@@ -24,6 +60,8 @@ async function init() {
     Notification.requestPermission();
   }
 
+  applyTheme();
+  document.getElementById('btn-theme').addEventListener('click', cycleTheme);
   startBgSlider();
   await loadTodos();
   setupDetailEvents();
@@ -70,64 +108,86 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function render() {
-  const list = document.getElementById('todo-list');
-  const empty = document.getElementById('empty-state');
+function makeTodoItem(todo, isDone) {
+  const li = document.createElement('li');
+  li.className = 'todo-item' +
+    (isDone ? ' completed' : '') +
+    (!isDone && isOverdue(todo) ? ' overdue' : '');
+  li.dataset.id = todo.id;
 
-  if (todos.length === 0) {
-    list.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-  list.innerHTML = '';
+  const badgeHtml = todo.subtasksTotal > 0
+    ? `<span class="subtask-badge ${todo.subtasksDone === todo.subtasksTotal ? 'all-done' : ''}">${todo.subtasksDone}/${todo.subtasksTotal}</span>`
+    : '';
+  const dueHtml = todo.dueDate
+    ? `<span class="todo-due ${!isDone && isOverdue(todo) ? 'overdue-label' : ''}">${!isDone && isOverdue(todo) ? '⚠ ' : '📅 '}${formatDate(todo.dueDate)}</span>`
+    : '';
 
-  todos.forEach(todo => {
-    const li = document.createElement('li');
-    li.className = 'todo-item' +
-      (todo.completed ? ' completed' : '') +
-      (isOverdue(todo) ? ' overdue' : '');
+  li.innerHTML = `
+    ${!isDone ? '<span class="drag-handle" title="Kéo để sắp xếp">⠿</span>' : ''}
+    <div class="todo-body" title="Xem chi tiết">
+      <div class="todo-title-row">
+        <span class="todo-title">${escapeHtml(todo.title)}</span>
+        ${badgeHtml}
+      </div>
+      ${dueHtml}
+    </div>
+    <div class="todo-actions">
+      ${!isDone
+        ? `<button class="btn-done" title="Đánh dấu xong">✓</button>`
+        : `<button class="btn-undo" title="Hoàn tác">↩</button>`}
+      <button class="btn-delete" title="Xóa">✕</button>
+    </div>
+  `;
+
+  li.querySelector('.todo-body').addEventListener('click', () => openDetail(todo.id));
+  li.querySelector(isDone ? '.btn-undo' : '.btn-done').addEventListener('click', (e) => {
+    e.stopPropagation();
+    isDone ? undoTodo(todo.id) : completeTodo(todo.id);
+  });
+  li.querySelector('.btn-delete').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteTodo(todo.id);
+  });
+
+  if (!isDone) {
     li.draggable = true;
-    li.dataset.id = todo.id;
-
-    li.innerHTML = `
-      <span class="drag-handle" title="Kéo để sắp xếp">⠿</span>
-      <div class="todo-body" title="Xem chi tiết">
-        <div class="todo-title-row">
-          <span class="todo-title">${escapeHtml(todo.title)}</span>
-          ${todo.subtasksTotal > 0
-            ? `<span class="subtask-badge ${todo.subtasksDone === todo.subtasksTotal ? 'all-done' : ''}">${todo.subtasksDone}/${todo.subtasksTotal}</span>`
-            : ''}
-        </div>
-        ${todo.dueDate
-          ? `<span class="todo-due ${isOverdue(todo) ? 'overdue-label' : ''}">${isOverdue(todo) ? '⚠ ' : '📅 '}${formatDate(todo.dueDate)}</span>`
-          : ''}
-      </div>
-      <div class="todo-actions">
-        ${!todo.completed
-          ? `<button class="btn-done" title="Đánh dấu xong">✓</button>`
-          : `<button class="btn-undo" title="Hoàn tác">↩</button>`}
-        <button class="btn-delete" title="Xóa">✕</button>
-      </div>
-    `;
-
-    li.querySelector('.todo-body').addEventListener('click', () => openDetail(todo.id));
-    li.querySelector(todo.completed ? '.btn-undo' : '.btn-done').addEventListener('click', (e) => {
-      e.stopPropagation();
-      todo.completed ? undoTodo(todo.id) : completeTodo(todo.id);
-    });
-    li.querySelector('.btn-delete').addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteTodo(todo.id);
-    });
-
     li.addEventListener('dragstart', onDragStart);
     li.addEventListener('dragover', onDragOver);
     li.addEventListener('drop', onDrop);
     li.addEventListener('dragend', onDragEnd);
+  }
 
-    list.appendChild(li);
-  });
+  return li;
+}
+
+function render() {
+  const active = todos.filter(t => !t.completed);
+  const done = todos.filter(t => t.completed);
+
+  const list = document.getElementById('todo-list');
+  const empty = document.getElementById('empty-state');
+  const doneSection = document.getElementById('done-section');
+  const doneList = document.getElementById('done-list');
+  const doneCount = document.getElementById('done-count');
+
+  // Active list
+  list.innerHTML = '';
+  if (active.length === 0) {
+    empty.classList.remove('hidden');
+  } else {
+    empty.classList.add('hidden');
+    active.forEach(todo => list.appendChild(makeTodoItem(todo, false)));
+  }
+
+  // Done section
+  if (done.length === 0) {
+    doneSection.classList.add('hidden');
+  } else {
+    doneSection.classList.remove('hidden');
+    doneCount.textContent = done.length;
+    doneList.innerHTML = '';
+    done.forEach(todo => doneList.appendChild(makeTodoItem(todo, true)));
+  }
 }
 
 // ── Drag & drop ───────────────────────────────────────────────────────────────
@@ -170,6 +230,7 @@ async function saveOrder() {
 
 // ── List actions ──────────────────────────────────────────────────────────────
 async function completeTodo(id) {
+  playTing();
   await fetch(`/api/todos/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -328,6 +389,7 @@ function renderSubtasks(subtasks) {
     let isEditing = false;
 
     check.addEventListener('change', async () => {
+      if (check.checked) playTing();
       await fetch(`/api/todos/${currentTodoId}/subtasks/${st.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

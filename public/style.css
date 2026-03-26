@@ -1,5 +1,24 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --glass-bg: rgba(255,255,255,0.52);
+  --glass-blur: 18px;
+  --item-bg: rgba(255,255,255,0.68);
+  --item-border: rgba(255,255,255,0.55);
+}
+body.theme-clear {
+  --glass-bg: rgba(255,255,255,0.22);
+  --glass-blur: 8px;
+  --item-bg: rgba(255,255,255,0.38);
+  --item-border: rgba(255,255,255,0.3);
+}
+body.theme-frosted {
+  --glass-bg: rgba(255,255,255,0.82);
+  --glass-blur: 28px;
+  --item-bg: rgba(255,255,255,0.92);
+  --item-border: #e5e7eb;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #1a1a2e;
@@ -111,9 +130,11 @@ input:focus {
   max-width: 640px;
   margin: 0 auto;
   padding: 32px 16px 64px;
-  background: rgba(255,255,255,0.82);
-  backdrop-filter: blur(14px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   min-height: 100vh;
+  transition: background 0.4s, backdrop-filter 0.4s;
 }
 
 .app-header {
@@ -122,6 +143,24 @@ input:focus {
   justify-content: space-between;
   margin-bottom: 24px;
 }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-theme {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.6);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+.btn-theme:hover { border-color: #4f46e5; transform: rotate(20deg); }
 
 .app-header h1 { font-size: 1.6rem; }
 
@@ -173,8 +212,8 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fff;
-  border: 1.5px solid #e5e7eb;
+  background: var(--item-bg);
+  border: 1.5px solid var(--item-border);
   border-radius: 10px;
   padding: 12px 14px;
   cursor: default;
@@ -599,3 +638,41 @@ body.panel-open { overflow: hidden; }
   transition: background 0.15s, color 0.15s;
 }
 .att-delete:hover { background: #fee2e2; color: #dc2626; }
+
+/* ── Done section ── */
+.done-section {
+  margin-top: 32px;
+  border-top: 1.5px solid rgba(255,255,255,0.4);
+  padding-top: 20px;
+}
+
+.done-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.done-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.done-count-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(107,114,128,0.15);
+  color: #6b7280;
+  border-radius: 20px;
+  padding: 1px 8px;
+}
+
+.done-section .todo-item {
+  opacity: 0.7;
+}
+.done-section .todo-item:hover {
+  opacity: 0.9;
+}
